@@ -40,8 +40,16 @@
         <developerConnection>scm:svn:https://svn.apache.org/repos/asf/sling/trunk/bundles/jcr/contentloader</developerConnection>
         <url>http://svn.apache.org/viewvc/sling/trunk/bundles/jcr/contentloader</url>
     </scm>
+	<repositories>
+	    <repository>
+        	<id>JUnRar mirror repository</id>
+	        <name>JUnRar mirror repository</name>
+	        <url>https://junrar-repository.googlecode.com/svn/deploy/</url>
+	    </repository>
+	</repositories>
 
     <build>
+
         <plugins>
             <plugin>
                 <groupId>org.apache.felix</groupId>
@@ -56,11 +64,16 @@
                     <instructions>
                         <Private-Package>
                             org.apache.sling.jcr.contentloader.internal.*,
-                            org.kxml2.io, org.xmlpull.v1
-                        </Private-Package>
-
+                            org.kxml2.io, 
+			    org.xmlpull.v1,
+			    com.github.junrar,
+			    com.github.junrar.*
+<!--			    !org.apache.commons.vfs2.provider.*-->
+		        </Private-Package>
                         <Embed-Dependency>
-                            kxml2
+                            kxml2,
+			    junrar;inline=com/github/junrar/Archive.class|com/github/junrar/rarfile/FileHeader.class|com/github/junrar/exception/*.class|com/github/junrar/io/*.class|com/github/junrar/crc/*.class|com/github/junrar/impl/*.class|com/github/junrar/unpack/*.class|com/github/junrar/util/io/*.class
+<!--,commons-vfs2,bndlib-->
                         </Embed-Dependency>
 
                     </instructions>
@@ -176,12 +189,24 @@
             <version>2.1.0</version>
             <scope>provided</scope>
         </dependency>
-
+	<!-- dependency for junrar library -->
+	<dependency>
+		<groupId>com.github.junrar</groupId>
+		<artifactId>junrar</artifactId>
+		<version>0.6.1</version>
+		<scope>provided</scope>
+	</dependency>
         <dependency>
             <groupId>biz.aQute</groupId>
             <artifactId>bndlib</artifactId>
             <version>1.50.0</version>
             <scope>provided</scope>
         </dependency>
+	<dependency>
+		<groupId>org.apache.commons</groupId>
+		<artifactId>commons-vfs2</artifactId>
+		<version>2.0</version>
+		<optional>true</optional>
+	</dependency>
     </dependencies>
 </project>

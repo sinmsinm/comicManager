@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.sling.jcr.contentloader.internal.readers.JsonReader;
 import org.apache.sling.jcr.contentloader.internal.readers.XmlReader;
 import org.apache.sling.jcr.contentloader.internal.readers.ZipReader;
+import org.apache.sling.jcr.contentloader.internal.readers.ComicReader;
 
 /**
  * Base class that takes care of the details that are common to bundle content
@@ -35,6 +36,8 @@ public abstract class BaseImportLoader {
     public static final String EXT_JSON = ".json";
     public static final String EXT_JAR = ".jar";
     public static final String EXT_ZIP = ".zip";
+    public static final String EXT_CBZ = ".cbz";
+    public static final String EXT_CBR = ".cbr";
 
     /** All available import providers. */
     Map<String, ImportProvider> defaultImportProviders;
@@ -46,6 +49,8 @@ public abstract class BaseImportLoader {
         defaultImportProviders.put(EXT_XML, XmlReader.PROVIDER);
         defaultImportProviders.put(EXT_JAR, ZipReader.JAR_PROVIDER);
         defaultImportProviders.put(EXT_ZIP, ZipReader.ZIP_PROVIDER);
+        defaultImportProviders.put(EXT_CBZ, ComicReader.CBZ_PROVIDER);
+        defaultImportProviders.put(EXT_CBR, ComicReader.CBR_PROVIDER);
 	}
 
     public void dispose() {
