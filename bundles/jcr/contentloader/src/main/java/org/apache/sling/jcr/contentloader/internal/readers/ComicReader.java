@@ -40,13 +40,26 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The <code>ComicReader</code> TODO
+
  *
  * @since 2.0
  * @author Alexandre Ballesté
  */
 public class ComicReader implements ContentReader {
 
+ /*
+ *  JCR and SLING content types
+ */
+   	
     private static final String NT_FOLDER = "nt:folder";
+    private static final String SLING_FOLDER = "sling:Folder";
+    private static final String SLING_ORDERED_FOLDER = "sling:OrderedFolder";
+    private static final String SLING_RESOURCE_TYPE = "sling:resourceType";
+    private static final String JCR_NAME= "jcr:name";
+    private static final String BIN_FOLDER = "bin";
+    private static final String COMIC_BIN_ISSUE = "comic-bin/issue";
+    private static final String COMIC_BIN_PAGE = "comic-bin/page";
+
 
     private static final int CBR_COMIC_TYPE = 0;
     private static final int CBZ_COMIC_TYPE = 1;
@@ -118,26 +131,34 @@ public class ComicReader implements ContentReader {
 	private void parseCBZ(InputStream ins, ContentCreator creator)
 			throws IOException, RepositoryException {
 	        try {
-	            creator.createNode(null, NT_FOLDER, null);
-	            final ZipInputStream zis = new ZipInputStream(ins);
+	            creator.createNode(null,NT_FOLDER, null);
+		    creator.createProperty (SLING_RESOURCE_TYPE,COMIC_BIN_ISSUE);
+		    
+		    final ZipInputStream zis = new ZipInputStream(ins);
 	            ZipEntry entry;
 	            do {
         	        entry = zis.getNextEntry();
                 	if ( entry != null ) {
 	                    if ( !entry.isDirectory() ) {
 	                        String name = entry.getName();
-       	                 int pos = name.lastIndexOf('/');
-       	                 if ( pos != -1 ) {
-                            creator.switchCurrentNode(name.substring(0, pos), NT_FOLDER);
-                        }
-                        creator.createFileAndResourceNode(name, new CloseShieldInputStream(zis), null, entry.getTime());
-                        creator.finishNode();
-                        creator.finishNode();
-                        if ( pos != -1 ) {
-                            creator.finishNode();
-                        }
-                    }
-                    zis.closeEntry();
+       					                	
+				int pos = name.lastIndexOf('/');
+		
+				if (pos == -1) {
+					pos=0;
+				}
+       	               		
+				name = name.substring(pos);
+				creator.switchCurrentNode(name,SLING_FOLDER);
+                		creator.createProperty(JCR_NAME,name);
+                        	creator.createProperty(SLING_RESOURCE_TYPE,COMIC_BIN_PAGE);
+
+		        	creator.createFileAndResourceNode(BIN_FOLDER, new CloseShieldInputStream(zis), null, entry.getTime());
+                        	creator.finishNode();
+                        	creator.finishNode();
+                        	creator.finishNode();
+     	             	 }
+           		zis.closeEntry();
                 }
 
             } while ( entry != null );
@@ -161,7 +182,7 @@ public class ComicReader implements ContentReader {
 
 	try {
 		creator.createNode(null, NT_FOLDER, null);
-
+		creator.createProperty (SLING_RESOURCE_TYPE,COMIC_BIN_ISSUE);
 		/* Create a temporaly rar file from the inpuyStream in order to descompres with Archive */
 
 		File tempFile = File.createTempFile("tempcbrFile", ".tmp");  
@@ -187,6 +208,8 @@ public class ComicReader implements ContentReader {
         		    }  
 		}
 		/* Create a new junrar Archive */
+
+
 		try {
 			arch = new Archive(tempFile);
 		} catch (Exception e) {
@@ -225,65 +248,41 @@ public class ComicReader implements ContentReader {
 						} else {
 							name = fh.getFileNameString();
 						}
-	
-						logger.debug ("name of file" + name);
-
-						name= name.replace("\\","/");
-
-						logger.debug ("name of file after replacing" + name);
-	
-
-			                        int pos = name.lastIndexOf('/');
 						
-						logger.debug ("position ok  " +  pos);
-                		
-					        if ( pos != -1 ) {
-					 	    logger.debug ("before swithcing node " + name.substring(0, pos));
-		        	                    creator.switchCurrentNode(name.substring(0, pos), NT_FOLDER);
-						    logger.debug ("After switching node");
-                			        }
-						logger.debug ("before create node" + name);
+						name= name.replace("\\","/");
+			                        int pos = name.lastIndexOf('/');
+					
+						if (pos == -1) {
+							pos=0;
+						}
 
+						name = name.substring(pos);
 						InputStream impar = arch.getInputStream (fh);
 						
 						if (impar!= null){
-								logger.debug ("El input stream no es null");
-						                creator.createFileAndResourceNode(name, new CloseShieldInputStream(impar), null, (new Date()).getTime());		
-							logger.debug ("after create the node");
+					             	creator.switchCurrentNode(name,SLING_FOLDER);
+							creator.createProperty(JCR_NAME,name);
+							creator.createProperty(SLING_RESOURCE_TYPE,COMIC_BIN_PAGE);
+					  	        creator.createFileAndResourceNode(BIN_FOLDER, new CloseShieldInputStream(impar), null, (new Date()).getTime());
+							creator.finishNode();
+							creator.finishNode();
 					
-						}else{
-							logger.debug("El inpar es null");
-
-						}
-								logger.debug ("before finishing node1");
-				                        creator.finishNode();
-
-						logger.debug ("before finishing node2");
+						}		
+		
 
                 			        creator.finishNode();
 
-						logger.debug ("after clossing 1 and 2");
-	
-					        if ( pos != -1 ) {
-							logger.debug ("before finihing node3");
-        			               	    creator.finishNode();
-							logger.debug ("after close node 3");
-	               	 		        }
 					}
 		                }catch (Exception ex){
 					logger.error ("Exception extracting ", ex);
 				}
 		            } 
 			}		
-			logger.debug ("Just out the bucle");
-
-        	 creator.finishNode();
-			logger.debug ("Just after finish node out while");
-	        }catch (Exception ex){
-			logger.error ("cached a error out of bucle",ex);
-		 }finally {
+        	 	creator.finishNode();
+	         }finally {
 
 		}
+		
 	}
     
 }
