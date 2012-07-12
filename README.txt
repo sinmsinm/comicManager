@@ -1,3 +1,8 @@
+ComicManager
+============
+ComicManager is a implementation of a comic data store example using the framework Sling. 
+
+
 Apache Sling
 ============
 
