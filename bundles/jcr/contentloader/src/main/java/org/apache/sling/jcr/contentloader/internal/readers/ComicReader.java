@@ -17,13 +17,15 @@
  * under the License.
  */
 
-
 package org.apache.sling.jcr.contentloader.internal.readers;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.File;
+import java.io.OutputStream;
 import java.io.FileOutputStream;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.util.Date;
 import javax.jcr.RepositoryException;
 import org.apache.commons.io.input.CloseShieldInputStream;
@@ -40,249 +42,276 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The <code>ComicReader</code> TODO
-
- *
+ * 
+ * 
  * @since 2.0
- * @author Alexandre Ballesté
+ * @author Alexandre Ballesté - alex.balleste at gmail.com
+ * 
  */
 public class ComicReader implements ContentReader {
 
- /*
- *  JCR and SLING content types
- */
-   	
-    private static final String NT_FOLDER = "nt:folder";
-    private static final String SLING_FOLDER = "sling:Folder";
-    private static final String SLING_ORDERED_FOLDER = "sling:OrderedFolder";
-    private static final String SLING_RESOURCE_TYPE = "sling:resourceType";
-    private static final String JCR_NAME= "jcr:name";
-    private static final String BIN_FOLDER = "bin";
-    private static final String COMIC_BIN_ISSUE = "comic-bin/issue";
-    private static final String COMIC_BIN_PAGE = "comic-bin/page";
+	/*
+	 * JCR and SLING content types
+	 */
 
+	private static final String NT_FOLDER = "nt:folder";
+	private static final String SLING_FOLDER = "sling:Folder";
+	private static final String SLING_ORDERED_FOLDER = "sling:OrderedFolder";
+	private static final String SLING_RESOURCE_TYPE = "sling:resourceType";
+	private static final String JCR_NAME = "jcr:name";
+	private static final String BIN_FOLDER = "bin";
+	private static final String COMIC_BIN_ISSUE = "comic-bin/issue";
+	private static final String COMIC_BIN_PAGE = "comic-bin/page";
 
-    private static final int CBR_COMIC_TYPE = 0;
-    private static final int CBZ_COMIC_TYPE = 1;
+	private static final int CBR_COMIC_TYPE = 0;
+	private static final int CBZ_COMIC_TYPE = 1;
 
-    final Logger logger = LoggerFactory.getLogger(getClass());
+	final Logger logger = LoggerFactory.getLogger(getClass());
 
-    public static final ImportProvider CBR_PROVIDER = new ImportProvider() {
-        private ComicReader comicReader;
+	public static final ImportProvider CBR_PROVIDER = new ImportProvider() {
+		private ComicReader comicReader;
 
-        public ContentReader getReader() {
+		public ContentReader getReader() {
 
-            if (comicReader == null) {
-                comicReader = new ComicReader(CBR_COMIC_TYPE);
-            }
-            return comicReader;
-        }
-    };
+			if (comicReader == null) {
+				comicReader = new ComicReader(CBR_COMIC_TYPE);
+			}
+			return comicReader;
+		}
+	};
 
+	public static final ImportProvider CBZ_PROVIDER = new ImportProvider() {
+		private ComicReader comicReader;
 
-    public static final ImportProvider CBZ_PROVIDER = new ImportProvider() {
-        private ComicReader comicReader;
+		public ContentReader getReader() {
+			if (comicReader == null) {
+				comicReader = new ComicReader(CBZ_COMIC_TYPE);
+			}
+			return comicReader;
+		}
+	};
 
-        public ContentReader getReader() {
-            if (comicReader == null) {
-                comicReader = new ComicReader(CBZ_COMIC_TYPE);
-            }
-            return comicReader;
-        }
-    };
+	private final int comicReaderType;
 
-
-
-
-    /** Is this a cbz or cbr ? */
-    private final int comicReaderType;
-
-    public ComicReader(int comicReaderType) {
-        this.comicReaderType = comicReaderType;
-    }
-
-    /**
-     * @see org.apache.sling.jcr.contentloader.internal.ContentReader#parse(java.net.URL, org.apache.sling.jcr.contentloader.internal.ContentCreator)
-     */
-    public void parse(java.net.URL url, ContentCreator creator)
-    		throws IOException, RepositoryException {
-    	parse(url.openStream(), creator);
-    }
+	public ComicReader(int comicReaderType) {
+		this.comicReaderType = comicReaderType;
+	}
 
 	/**
-	 * @see org.apache.sling.jcr.contentloader.internal.ContentReader#parse(java.io.InputStream, org.apache.sling.jcr.contentloader.internal.ContentCreator)
+	 * @see org.apache.sling.jcr.contentloader.internal.ContentReader#parse(java.net.URL,
+	 *      org.apache.sling.jcr.contentloader.internal.ContentCreator)
+	 */
+	public void parse(java.net.URL url, ContentCreator creator)
+			throws IOException, RepositoryException {
+		parse(url.openStream(), creator);
+
+	}
+
+	/**
+	 * @see org.apache.sling.jcr.contentloader.internal.ContentReader#parse(java.io.InputStream,
+	 *      org.apache.sling.jcr.contentloader.internal.ContentCreator)
 	 */
 	public void parse(InputStream ins, ContentCreator creator)
 			throws IOException, RepositoryException {
 
-		switch (this.comicReaderType){
-			case CBR_COMIC_TYPE:
-				parseCBR(ins,creator);
-				break;
-			case CBZ_COMIC_TYPE:
-				parseCBZ(ins,creator);
-				break;
-			default:
-				break;
+		switch (this.comicReaderType) {
+		case CBR_COMIC_TYPE:
+			parseCBR(ins, creator);
+			break;
+		case CBZ_COMIC_TYPE:
+			parseCBZ(ins, creator);
+			break;
+		default:
+			break;
+		}
 
-		}	
 	}
-
 
 	private void parseCBZ(InputStream ins, ContentCreator creator)
 			throws IOException, RepositoryException {
-	        try {
-	            creator.createNode(null,NT_FOLDER, null);
-		    creator.createProperty (SLING_RESOURCE_TYPE,COMIC_BIN_ISSUE);
-		    
-		    final ZipInputStream zis = new ZipInputStream(ins);
-	            ZipEntry entry;
-	            do {
-        	        entry = zis.getNextEntry();
-                	if ( entry != null ) {
-	                    if ( !entry.isDirectory() ) {
-	                        String name = entry.getName();
-       					                	
-				int pos = name.lastIndexOf('/');
-		
-				if (pos == -1) {
-					pos=0;
+		try {
+			logger.debug("Parsing a cbz file");
+
+			creator.createNode(null, SLING_FOLDER, null);
+			creator.createProperty(SLING_RESOURCE_TYPE, COMIC_BIN_ISSUE);
+
+			final ZipInputStream zis = new ZipInputStream(ins);
+
+			ZipEntry entry;
+			do {
+
+				entry = zis.getNextEntry();
+				if (entry != null) {
+					if (!entry.isDirectory()) {
+						String name = entry.getName();
+
+						int pos = name.lastIndexOf('/');
+
+						if (pos == -1) {
+							pos = 0;
+						}
+
+						name = name.substring(pos);
+						creator.switchCurrentNode(name, SLING_FOLDER);
+						creator.createProperty(JCR_NAME, name);
+						creator.createProperty(SLING_RESOURCE_TYPE,
+								COMIC_BIN_PAGE);
+
+						creator.createFileAndResourceNode(BIN_FOLDER,
+								new CloseShieldInputStream(zis), null,
+								entry.getTime());
+						creator.finishNode();
+						creator.finishNode();
+						creator.finishNode();
+					}
+					zis.closeEntry();
 				}
-       	               		
-				name = name.substring(pos);
-				creator.switchCurrentNode(name,SLING_FOLDER);
-                		creator.createProperty(JCR_NAME,name);
-                        	creator.createProperty(SLING_RESOURCE_TYPE,COMIC_BIN_PAGE);
 
-		        	creator.createFileAndResourceNode(BIN_FOLDER, new CloseShieldInputStream(zis), null, entry.getTime());
-                        	creator.finishNode();
-                        	creator.finishNode();
-                        	creator.finishNode();
-     	             	 }
-           		zis.closeEntry();
-                }
+			} while (entry != null);
+	
+			logger.debug("Added all entries");
 
-            } while ( entry != null );
-            creator.finishNode();
-        } finally {
-            if (ins != null) {
-                try {
-                    ins.close();
-                } catch (IOException ignore) {
-                }
-            }
-        }
-	
-	
+			creator.finishNode();
+		} finally {
+			if (ins != null) {
+				try {
+					ins.close();
+				} catch (IOException ignore) {
+				}
+			}
+		}
+
 	}
 
 	private void parseCBR(InputStream ins, ContentCreator creator)
 			throws IOException, RepositoryException {
-	
-	Archive arch=null;
 
-	try {
-		creator.createNode(null, NT_FOLDER, null);
-		creator.createProperty (SLING_RESOURCE_TYPE,COMIC_BIN_ISSUE);
-		/* Create a temporaly rar file from the inpuyStream in order to descompres with Archive */
-
-		File tempFile = File.createTempFile("tempcbrFile", ".tmp");  
-		tempFile.deleteOnExit(); 
-
-		FileOutputStream fout = null;  
-
-		try{  
-			fout = new FileOutputStream(tempFile);  
-			int c;  
- 
-			while ((c = ins.read()) != -1) {  
-  	      			fout.write(c);  
-		        }  
-
-		}finally{  
-		            if (ins != null) {  
-        		        ins.close();  
-		            }  
-
-		       	    if (fout != null) {  
-		                fout.close();  
-        		    }  
-		}
-		/* Create a new junrar Archive */
-
+		Archive arch = null;
+		File tempFile = null;
 
 		try {
-			arch = new Archive(tempFile);
-		} catch (Exception e) {
-			logger.error("error",e);
-		}
+			logger.debug("Parsing a rar file");
+			creator.createNode(null, SLING_FOLDER, null);
+			creator.createProperty(SLING_RESOURCE_TYPE, COMIC_BIN_ISSUE);
 
-		if (arch != null) {
+			/*
+			 * Create a temporaly rar file from the inpuyStream in order to
+			 * descompres with Archive class
+			 */
+	
+			
+			tempFile = File.createTempFile("tempcbrFile", ".tmp");
+			
+			OutputStream fout = null;
 
-			if (arch.isEncrypted()) {
-				logger.warn("archive is encrypted cannot extreact");
-				return;
+			try {
+				fout = new BufferedOutputStream(new FileOutputStream(tempFile));
+				ins = new BufferedInputStream(ins);
+
+				int len = 8192;
+				byte[] bytes = new byte[len];
+
+				while ((len = ins.read(bytes, 0, len)) != -1) {
+					fout.write(bytes, 0, len);
+				}
+
+				fout.flush();
+
+			} catch (Exception ex) {
+				logger.error("Got an error building the temporal cbr file", ex);
+			} finally {
+		
+				if (fout != null) {
+					fout.close();
+				}
+
+				if (ins != null) {
+					ins.close();
+				}
+
+			}
+			/* Create a new junrar Archive */
+
+			try {
+				logger.debug("Opening as rar archive");
+				arch = new Archive(tempFile);
+			} catch (Exception e) {
+				logger.error("Error opening the rar file", e);
 			}
 
-			FileHeader fh = null;
-		
-			while (true) {
-				fh = arch.nextFileHeader();
-			
-				if (fh == null) {
-					break;
+			if (arch != null) {
+
+				if (arch.isEncrypted()) {
+					logger.warn("archive is encrypted cannot extreact");
+					return;
 				}
-				
-				if (fh.isEncrypted()) {
-					logger.warn("file is encrypted cannot extract: "+ fh.getFileNameString());
-					continue;	
-				}
-			
-				logger.info("extracting: " + fh.getFileNameString());
-			
-				try {
-					if (!fh.isDirectory()) {
 
-						String name = null;
-						if (fh.isFileHeader() && fh.isUnicode()) {
-							name = fh.getFileNameW();
-						} else {
-							name = fh.getFileNameString();
-						}
-						
-						name= name.replace("\\","/");
-			                        int pos = name.lastIndexOf('/');
-					
-						if (pos == -1) {
-							pos=0;
-						}
+				FileHeader fh = null;
 
-						name = name.substring(pos);
-						InputStream impar = arch.getInputStream (fh);
-						
-						if (impar!= null){
-					             	creator.switchCurrentNode(name,SLING_FOLDER);
-							creator.createProperty(JCR_NAME,name);
-							creator.createProperty(SLING_RESOURCE_TYPE,COMIC_BIN_PAGE);
-					  	        creator.createFileAndResourceNode(BIN_FOLDER, new CloseShieldInputStream(impar), null, (new Date()).getTime());
-							creator.finishNode();
-							creator.finishNode();
-					
-						}		
-		
+				while (true) {
+					fh = arch.nextFileHeader();
 
-                			        creator.finishNode();
-
+					if (fh == null) {
+						break;
 					}
-		                }catch (Exception ex){
-					logger.error ("Exception extracting ", ex);
-				}
-		            } 
-			}		
-        	 	creator.finishNode();
-	         }finally {
 
+					if (fh.isEncrypted()) {
+						logger.warn("file is encrypted cannot extract: "
+								+ fh.getFileNameString());
+						continue;
+					}
+
+					logger.info ("Extracting: " + fh.getFileNameString());
+
+					try {
+						if (!fh.isDirectory()) {
+
+							String name = null;
+							if (fh.isFileHeader() && fh.isUnicode()) {
+								name = fh.getFileNameW();
+							} else {
+								name = fh.getFileNameString();
+							}
+
+							name = name.replace ("\\","/");
+							int pos = name.lastIndexOf('/');
+							
+							//if / not found then the name of files are on the root
+							if (pos == -1) {
+								pos = 0;
+							}
+
+							name = name.substring(pos);
+							InputStream impar = arch.getInputStream(fh);
+
+							if (impar != null) {
+								creator.switchCurrentNode(name, SLING_FOLDER);
+								creator.createProperty(JCR_NAME, name);
+								creator.createProperty(SLING_RESOURCE_TYPE,
+										COMIC_BIN_PAGE);
+								creator.createFileAndResourceNode(BIN_FOLDER,
+										new CloseShieldInputStream(impar),
+										null, (new Date()).getTime());
+								creator.finishNode();
+								creator.finishNode();
+
+							}
+
+							creator.finishNode();
+
+						}
+					} catch (Exception ex) {
+						logger.error("Exception extracting rar file", ex);
+					}
+				}
+			}
+			creator.finishNode();
+		} catch (Exception mex) {
+			logger.error("Error", mex);
+		} finally {
+			//finally delete the temp file 
+			tempFile.delete();
 		}
-		
 	}
-    
+
 }
