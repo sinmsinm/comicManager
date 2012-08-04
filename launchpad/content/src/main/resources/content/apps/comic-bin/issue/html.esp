@@ -1,0 +1,53 @@
+<html>
+<head>
+	<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0;" name="viewport" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+
+	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.1.1/jquery.mobile-1.1.1.min.css" />
+	<link href="/css/jquery-mobile.css" type="text/css" rel="stylesheet" />
+	<link href="/css/photoswipe.css" type="text/css" rel="stylesheet" />
+
+
+	<script type="text/javascript" src="/js/klass.min.js"></script>
+	<script src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+	<script src="http://code.jquery.com/mobile/1.1.1/jquery.mobile-1.1.1.min.js"></script>
+	<script type="text/javascript" src="/js/code.photoswipe.jquery-3.0.5.js"></script>	
+	
+	<script type="text/javascript">
+		
+		 (function(window, $, PhotoSwipe){
+
+                $(document).ready(function(){
+			 $("#Gallery a").photoSwipe({cache: Code.PhotoSwipe.Cache.Mode.aggressive});
+		});
+	  }(window, window.jQuery, window.Code.PhotoSwipe));
+
+	</script>
+</head>
+
+
+<body>
+<h1><%= currentNode.name %></h1>
+
+<ul id="Gallery" class="gallery">
+
+<% if (currentNode.hasNodes()) {
+
+	var qm=currentNode.getSession().getWorkspace().getQueryManager();
+	var q=qm.createQuery("/" + currentNode.getPath() + "/* [@sling:resourceType='comic-bin/page']   order by @jcr:name", "xpath");
+	var items=q.execute().getNodes();
+
+
+
+	while (items.hasNext()){
+		item = items.nextNode();
+%>
+  		 <li><a href="<%= item.getPath() %>/bin"><img width="40px" src="<%= item.getPath() %>/thumb" alt="" /></a> </i>
+<% 
+	} /*end for loop*/
+}
+ %>
+</ul>
+</body>
+</html>
+
