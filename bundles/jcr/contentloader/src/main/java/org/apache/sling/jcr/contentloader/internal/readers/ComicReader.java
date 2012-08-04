@@ -75,7 +75,7 @@ public class ComicReader implements ContentReader {
 	private static final String THUMB_FOLDER = "thumb";
 	private static final String COMIC_BIN_ISSUE = "comic-bin/issue";
 	private static final String COMIC_BIN_PAGE = "comic-bin/page";
-	private static final int THUMBNAIL_WITH = 75;
+	private static final int THUMBNAIL_WITH = 150;
 	private static final Map<String, String> supportedMimeTypes = new HashMap<String, String>();
 
 	private static final int CBR_COMIC_TYPE = 0;
